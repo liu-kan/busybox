@@ -1213,42 +1213,51 @@ int ls_main(int argc UNUSED_PARAM, char **argv)
 
 	/* stuff the command line file names into a dnode array */
 	dn = NULL;
-	nfiles = 0;
+	nfiles = 0;	
 	do {
+		if (nfiles==1){
+			nfiles=2;
+			break;
+		}
+
 		cur = my_stat(*argv, *argv,
-			/* follow links on command line unless -l, -i, -s or -F: */
+			// follow links on command line unless -l, -i, -s or -F:
 			!(option_mask32 & (OPT_l|OPT_i|OPT_s|OPT_F))
-			/* ... or if -H: */
+			// ... or if -H: 
 			|| (option_mask32 & OPT_H)
-			/* ... or if -L, but my_stat always follows links if -L */
+			// ... or if -L, but my_stat always follows links if -L 
 		);
 		argv++;
 		if (!cur)
 			continue;
-		/*cur->fname_allocated = 0; - already is */
+		//cur->fname_allocated = 0; - already is 
 		cur->dn_next = dn;
 		dn = cur;
 		nfiles++;
 	} while (*argv);
-
 	/* nfiles _may_ be 0 here - try "ls doesnt_exist" */
 	if (nfiles == 0)
 		return G.exit_code;
-
+	if(nfiles>1){
+		printf("This ls is limited to handle one file a time.\n");
+		nfiles=1;
+	}	
 	/* now that we know how many files there are
 	 * allocate memory for an array to hold dnode pointers
 	 */
 	dnp = dnalloc(nfiles);
-	for (i = 0; /* i < nfiles - detected via !dn below */; i++) {
+	for (i = 0; i < nfiles ; i++) {
 		dnp[i] = dn;	/* save pointer to node in array */
 		dn = dn->dn_next;
 		if (!dn)
 			break;
 	}
 
+	/*
 	if (option_mask32 & OPT_d) {
-		sort_and_display_files(dnp, nfiles);
-	} else {
+		sort_and_display_files(dnp, nfiles);		
+	} else */
+	{		
 		dnd = splitdnarray(dnp, SPLIT_DIR);
 		dnf = splitdnarray(dnp, SPLIT_FILE);
 		dndirs = count_dirs(dnp, SPLIT_DIR);
@@ -1258,11 +1267,17 @@ int ls_main(int argc UNUSED_PARAM, char **argv)
 			if (ENABLE_FEATURE_CLEAN_UP)
 				free(dnf);
 		}
-		if (dndirs > 0) {
-			dnsort(dnd, dndirs);
-			scan_and_display_dirs_recur(dnd, dnfiles == 0);
+		if (dndirs > 0) { 
+			if(!(opt & OPT_l)){
+				dnsort(dnd, dndirs);
+				scan_and_display_dirs_recur(dnd, dnfiles == 0);
+			}else{
+				printf("list a dir with -l will cause the system halt, because of lustre.\n");
+				printf("please use ls dir then ls -l filename_in_dir instead.\n");
+			}
 			if (ENABLE_FEATURE_CLEAN_UP)
 				free(dnd);
+			
 		}
 	}
 
